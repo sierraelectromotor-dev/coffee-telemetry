@@ -1,0 +1,109 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum MachineStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum FlavorCategory {
+  CAFE
+  CHOCOLATE
+  ESPECIALIDAD
+  TE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Machine {
+  id         String        @id @default(cuid())
+  code       String        @unique // Clave única enviada por el ESP32 (ej. "MAQ-001")
+  name       String        // Nombre legible (ej. "Recepción Torre A")
+  location   String        // Ubicación física (ej. "Piso 4 - Cafetería")
+  status     MachineStatus @default(ONLINE)
+  lastPingAt DateTime?     @default(now())
+  apiKey     String?       // Llave de seguridad individual opcional
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  dispenseSlots  DispenseSlot[]
+  dispenseEvents DispenseEvent[]
+
+  @@index([status])
+  @@index([lastPingAt])
+  @@index([code])
+}
+
+model Flavor {
+  id             String         @id @default(cuid())
+  name           String         @unique // ej: "Café Americano", "Capuccino Tradicional"
+  category       FlavorCategory @default(CAFE)
+  description    String?
+  price          Decimal        @default(0.00) @db.Decimal(10, 2)
+  costPerServing Decimal        @default(0.00) @db.Decimal(10, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  dispenseSlots DispenseSlot[]
+
+  @@index([category])
+}
+
+model DispenseSlot {
+  id             String   @id @default(cuid())
+  machineId      String
+  buttonIndex    Int      // 1 a 4 (pulsadores físicos de la máquina)
+  flavorId       String
+  powderGrammage Decimal  @default(18.0) @db.Decimal(6, 2) // Gramos de soluble dosificados
+  waterVolumeMl  Decimal  @default(150.0) @db.Decimal(6, 2) // Mililitros de agua
+  price          Decimal  @default(0.00) @db.Decimal(10, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  flavor  Flavor  @relation(fields: [flavorId], references: [id], onDelete: Restrict)
+
+  @@unique([machineId, buttonIndex])
+  @@index([machineId])
+  @@index([flavorId])
+}
+
+model DispenseEvent {
+  id              String   @id @default(cuid())
+  machineId       String
+  buttonIndex     Int      // Botón pulsado (1-4)
+  flavorName      String   // Snapshot del sabor en el momento exacto
+  powderUsedGrams Decimal  @db.Decimal(6, 2)
+  waterUsedMl     Decimal  @db.Decimal(6, 2)
+  price           Decimal  @db.Decimal(10, 2)
+  timestamp       DateTime
+  createdAt       DateTime @default(now())
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@index([machineId, timestamp])
+  @@index([timestamp])
+  @@index([buttonIndex])
+}
