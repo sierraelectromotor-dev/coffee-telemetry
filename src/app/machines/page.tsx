@@ -44,6 +44,9 @@ export default async function MachinesPage() {
       powderGrammage: Number(s.powderGrammage),
       waterVolumeMl: Number(s.waterVolumeMl),
       price: Number(s.price),
+      hopperCapacityGrams: Number(s.hopperCapacityGrams ?? 1000),
+      currentStockGrams: Number(s.currentStockGrams ?? 1000),
+      lastRefillAt: s.lastRefillAt ? s.lastRefillAt.toISOString() : null,
       isActive: s.isActive,
     })),
   }));

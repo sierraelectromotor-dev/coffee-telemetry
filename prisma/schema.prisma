@@ -75,10 +75,13 @@ model DispenseSlot {
   machineId      String
   buttonIndex    Int      // 1 a 4 (pulsadores físicos de la máquina)
   flavorId       String
-  powderGrammage Decimal  @default(18.0) @db.Decimal(6, 2) // Gramos de soluble dosificados
-  waterVolumeMl  Decimal  @default(150.0) @db.Decimal(6, 2) // Mililitros de agua
-  price          Decimal  @default(0.00) @db.Decimal(10, 2)
-  isActive       Boolean  @default(true)
+  powderGrammage      Decimal   @default(18.0) @db.Decimal(6, 2) // Gramos de soluble dosificados
+  waterVolumeMl       Decimal   @default(150.0) @db.Decimal(6, 2) // Mililitros de agua
+  price               Decimal   @default(0.00) @db.Decimal(10, 2)
+  hopperCapacityGrams Decimal   @default(1000.0) @db.Decimal(8, 2) // Capacidad máxima de la tolva en gramos
+  currentStockGrams   Decimal   @default(1000.0) @db.Decimal(8, 2) // Gramos actuales restantes en tolva
+  lastRefillAt        DateTime? @default(now())
+  isActive            Boolean   @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -13,6 +13,8 @@ import {
   X,
   Coffee,
   CheckCircle2,
+  Box,
+  AlertTriangle,
 } from "lucide-react";
 import { MachineCalibrationForm, FlavorOption, ButtonSlotConfig } from "./MachineCalibrationForm";
 
@@ -42,6 +44,7 @@ export function MachinesManager({
   const [machines, setMachines] = useState<MachineItem[]>(initialMachines);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [calibratingMachine, setCalibratingMachine] = useState<MachineItem | null>(null);
+  const [refillLoading, setRefillLoading] = useState<string | null>(null);
 
   // Cerrar modales con tecla Escape
   useEffect(() => {
@@ -100,6 +103,9 @@ export function MachinesManager({
             powderGrammage: Number(s.powderGrammage),
             waterVolumeMl: Number(s.waterVolumeMl),
             price: Number(s.price),
+            hopperCapacityGrams: Number(s.hopperCapacityGrams || 1000),
+            currentStockGrams: Number(s.currentStockGrams || 1000),
+            lastRefillAt: s.lastRefillAt || null,
             isActive: s.isActive,
           })),
         },
@@ -117,6 +123,47 @@ export function MachinesManager({
       }
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  // Rellenar tolva rápida ("Marcar Full")
+  const handleQuickRefill = async (machineId: string, buttonIndex?: number) => {
+    try {
+      setRefillLoading(`${machineId}-${buttonIndex ?? "all"}`);
+      const res = await fetch(`/api/machines/${machineId}/slots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ buttonIndex }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al recargar tolva");
+      }
+
+      setMachines((prev) =>
+        prev.map((m) => {
+          if (m.id === machineId) {
+            const updatedSlots = m.dispenseSlots.map((s) => {
+              if (!buttonIndex || s.buttonIndex === buttonIndex) {
+                return {
+                  ...s,
+                  currentStockGrams: s.hopperCapacityGrams || 1000,
+                  lastRefillAt: new Date().toISOString(),
+                };
+              }
+              return s;
+            });
+            return { ...m, dispenseSlots: updatedSlots };
+          }
+          return m;
+        })
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Error al recargar tolva");
+    } finally {
+      setRefillLoading(null);
     }
   };
 
@@ -255,27 +302,113 @@ export function MachinesManager({
                   </p>
 
                   <div className="mt-4 pt-4 border-t border-slate-800/80">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-                      Selecciones Frontales (1 al 4):
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2.5">
+                      Selecciones Frontales & Nivel de Tolvas (1 al 4):
                     </span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      {machine.dispenseSlots.map((slot) => (
-                        <div
-                          key={slot.buttonIndex}
-                          className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80"
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] font-bold text-amber-400">P{slot.buttonIndex}</span>
-                            <span className="text-[10px] font-mono text-emerald-400 font-semibold">${slot.price}</span>
+                      {machine.dispenseSlots.map((slot) => {
+                        const capacity = Number(slot.hopperCapacityGrams || 1000);
+                        const current = Number(slot.currentStockGrams ?? 1000);
+                        const pct = Math.max(0, Math.min(100, Math.round((current / (capacity || 1)) * 100)));
+                        const cupsRemaining = slot.powderGrammage > 0 ? Math.floor(current / slot.powderGrammage) : 0;
+                        const isCritical = pct < 20;
+                        const isWarning = pct >= 20 && pct < 40;
+                        const isLoadingThis = refillLoading === `${machine.id}-${slot.buttonIndex}`;
+
+                        return (
+                          <div
+                            key={slot.buttonIndex}
+                            className={`p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
+                              isCritical
+                                ? "bg-rose-950/20 border-rose-500/50 shadow-sm shadow-rose-950/30"
+                                : isWarning
+                                ? "bg-slate-950 border-amber-500/40"
+                                : "bg-slate-950 border-slate-800/80"
+                            }`}
+                          >
+                            <div>
+                              {/* Header del botón */}
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-[10px] flex items-center justify-center">
+                                  P{slot.buttonIndex}
+                                </span>
+                                <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                                  ${slot.price}
+                                </span>
+                              </div>
+
+                              {/* Nombre de la bebida */}
+                              <span className="block font-semibold text-white truncate text-xs" title={slot.flavorName}>
+                                {slot.flavorName || "Sin Sabor"}
+                              </span>
+
+                              {/* Receta */}
+                              <span className="text-[10px] text-slate-500 block mb-2">
+                                {slot.powderGrammage}g • {slot.waterVolumeMl}ml
+                              </span>
+                            </div>
+
+                            {/* Nivel de Tolva & Stock */}
+                            <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-400 flex items-center gap-1 font-medium">
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      isCritical
+                                        ? "bg-rose-500 animate-ping"
+                                        : isWarning
+                                        ? "bg-amber-400"
+                                        : "bg-emerald-400"
+                                    }`}
+                                  />
+                                  Tolva:
+                                </span>
+                                <span className="font-mono text-slate-300 font-semibold">
+                                  {Math.round(current)}g / {capacity}g
+                                </span>
+                              </div>
+
+                              {/* Barra de progreso */}
+                              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    isCritical
+                                      ? "bg-rose-500"
+                                      : isWarning
+                                      ? "bg-amber-500"
+                                      : "bg-emerald-500"
+                                  }`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+
+                              {/* Estimación de tazas y botón Full rápido */}
+                              <div className="flex justify-between items-center text-[10px] pt-0.5">
+                                <span
+                                  className={`font-semibold ${
+                                    isCritical ? "text-rose-400" : isWarning ? "text-amber-400" : "text-slate-400"
+                                  }`}
+                                >
+                                  {isCritical ? "⚠️ ¡Recarga!" : `~${cupsRemaining} tzs`}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  disabled={isLoadingThis}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickRefill(machine.id, slot.buttonIndex);
+                                  }}
+                                  title="Marcar esta tolva como Llena (100%)"
+                                  className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-emerald-600 hover:text-white text-emerald-400 border border-slate-700 font-bold text-[9px] transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isLoadingThis ? "..." : "+ Full"}
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <span className="block font-semibold text-white truncate text-[11px]">
-                            {slot.flavorName || "Sin Sabor"}
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            {slot.powderGrammage}g • {slot.waterVolumeMl}ml
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -283,10 +416,20 @@ export function MachinesManager({
                 <div className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-800">
                   <button
                     onClick={() => setCalibratingMachine(machine)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-amber-600 hover:text-white text-slate-200 font-bold py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-amber-600 hover:text-white text-slate-200 font-bold py-2.5 px-3 rounded-xl text-xs transition-all cursor-pointer"
                   >
                     <Sliders className="w-3.5 h-3.5" />
                     Calibrar Dosificación
+                  </button>
+
+                  <button
+                    onClick={() => handleQuickRefill(machine.id)}
+                    disabled={refillLoading === `${machine.id}-all`}
+                    title="Rellenar todas las 4 tolvas al 100% (Marcar Full)"
+                    className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600 hover:text-white text-emerald-400 border border-slate-700 transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {refillLoading === `${machine.id}-all` ? "..." : "Full (x4)"}
                   </button>
 
                   <button

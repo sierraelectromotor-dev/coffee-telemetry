@@ -74,11 +74,18 @@ export async function ensureDatabaseInitialized() {
         "powderGrammage" DECIMAL(6,2) DEFAULT 18.00 NOT NULL,
         "waterVolumeMl" DECIMAL(6,2) DEFAULT 150.00 NOT NULL,
         "price" DECIMAL(10,2) DEFAULT 0.00 NOT NULL,
+        "hopperCapacityGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL,
+        "currentStockGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL,
+        "lastRefillAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
         "isActive" BOOLEAN DEFAULT true NOT NULL,
         "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         UNIQUE("machineId", "buttonIndex")
       );
+
+      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "hopperCapacityGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;
+      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "currentStockGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;
+      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "lastRefillAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;
     `);
 
     // 6. Crear tabla DispenseEvent
@@ -138,10 +145,10 @@ export async function ensureDatabaseInitialized() {
 
       await prisma.dispenseSlot.createMany({
         data: [
-          { machineId: m.id, buttonIndex: 1, flavorId: f1.id, powderGrammage: 16.0, waterVolumeMl: 120, price: 2500 },
-          { machineId: m.id, buttonIndex: 2, flavorId: f2.id, powderGrammage: 22.0, waterVolumeMl: 150, price: 3500 },
-          { machineId: m.id, buttonIndex: 3, flavorId: f3.id, powderGrammage: 25.0, waterVolumeMl: 150, price: 3500 },
-          { machineId: m.id, buttonIndex: 4, flavorId: f4.id, powderGrammage: 24.0, waterVolumeMl: 150, price: 4000 },
+          { machineId: m.id, buttonIndex: 1, flavorId: f1.id, powderGrammage: 16.0, waterVolumeMl: 120, price: 2500, hopperCapacityGrams: 1000.0, currentStockGrams: 1000.0 },
+          { machineId: m.id, buttonIndex: 2, flavorId: f2.id, powderGrammage: 22.0, waterVolumeMl: 150, price: 3500, hopperCapacityGrams: 1000.0, currentStockGrams: 1000.0 },
+          { machineId: m.id, buttonIndex: 3, flavorId: f3.id, powderGrammage: 25.0, waterVolumeMl: 150, price: 3500, hopperCapacityGrams: 1000.0, currentStockGrams: 1000.0 },
+          { machineId: m.id, buttonIndex: 4, flavorId: f4.id, powderGrammage: 24.0, waterVolumeMl: 150, price: 4000, hopperCapacityGrams: 1000.0, currentStockGrams: 1000.0 },
         ],
       });
       console.log("[DB_INIT] Datos semilla iniciales de máquinas y sabores creados con éxito.");

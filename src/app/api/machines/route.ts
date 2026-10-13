@@ -96,6 +96,9 @@ export async function POST(req: NextRequest) {
               powderGrammage: 18.0,
               waterVolumeMl: 150.0,
               price: Number(assignedFlavor.price) || 2500,
+              hopperCapacityGrams: 1000.0,
+              currentStockGrams: 1000.0,
+              lastRefillAt: new Date(),
               isActive: true,
             };
           }),

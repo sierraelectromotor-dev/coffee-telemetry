@@ -70,7 +70,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Transacción atómica: Registrar evento y actualizar estado de la máquina
+    // 4. Calcular descuento de inventario en la tolva
+    const currentStock = Number(slot.currentStockGrams ?? 1000);
+    const powderUsed = Number(slot.powderGrammage);
+    const newStock = Math.max(0, Number((currentStock - powderUsed).toFixed(2)));
+
+    // 5. Transacción atómica: Registrar evento, descontar tolva y actualizar ping de la máquina
     const [event] = await prisma.$transaction([
       prisma.dispenseEvent.create({
         data: {
@@ -83,6 +88,12 @@ export async function POST(req: NextRequest) {
           timestamp: eventTime,
         },
         select: { id: true },
+      }),
+      prisma.dispenseSlot.update({
+        where: { id: slot.id },
+        data: {
+          currentStockGrams: newStock,
+        },
       }),
       prisma.machine.update({
         where: { id: machine.id },
