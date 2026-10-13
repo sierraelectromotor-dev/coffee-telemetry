@@ -40,14 +40,14 @@ export default async function MachinesPage() {
     dispenseSlots: m.dispenseSlots.map((s) => ({
       buttonIndex: s.buttonIndex,
       flavorId: s.flavorId,
-      flavorName: s.flavor.name,
-      powderGrammage: Number(s.powderGrammage),
-      waterVolumeMl: Number(s.waterVolumeMl),
-      price: Number(s.price),
+      flavorName: s.flavor?.name || "Sin Asignar",
+      powderGrammage: Number(s.powderGrammage ?? 18),
+      waterVolumeMl: Number(s.waterVolumeMl ?? 150),
+      price: Number(s.price ?? 0),
       hopperCapacityGrams: Number(s.hopperCapacityGrams ?? 1000),
       currentStockGrams: Number(s.currentStockGrams ?? 1000),
       lastRefillAt: s.lastRefillAt ? s.lastRefillAt.toISOString() : null,
-      isActive: s.isActive,
+      isActive: s.isActive ?? true,
     })),
   }));
 

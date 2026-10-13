@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         data: {
           machineId: machine.id,
           buttonIndex: button,
-          flavorName: slot.flavor.name,
+          flavorName: slot.flavor?.name || "Bebida",
           powderUsedGrams: slot.powderGrammage,
           waterUsedMl: slot.waterVolumeMl,
           price: slot.price,

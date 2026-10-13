@@ -81,14 +81,14 @@ export default async function DashboardPage() {
 
   const recentEvents = recentEventsRaw.map((e) => ({
     id: e.id,
-    machineCode: e.machine.code,
-    machineName: e.machine.name,
-    flavorName: e.flavorName,
+    machineCode: e.machine?.code || "MAQ",
+    machineName: e.machine?.name || "Máquina",
+    flavorName: e.flavorName || "Bebida",
     buttonIndex: e.buttonIndex,
-    powderUsedGrams: Number(e.powderUsedGrams),
-    waterUsedMl: Number(e.waterUsedMl),
-    price: Number(e.price),
-    timestamp: e.timestamp.toISOString(),
+    powderUsedGrams: Number(e.powderUsedGrams ?? 0),
+    waterUsedMl: Number(e.waterUsedMl ?? 0),
+    price: Number(e.price ?? 0),
+    timestamp: e.timestamp ? e.timestamp.toISOString() : new Date().toISOString(),
   }));
 
   const metrics = {

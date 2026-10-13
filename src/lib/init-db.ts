@@ -3,12 +3,20 @@ import { hashPassword } from "./auth";
 
 let isDbInitialized = false;
 
+async function safeExecute(sql: string, label: string) {
+  try {
+    await prisma.$executeRawUnsafe(sql);
+  } catch (err) {
+    console.warn(`[DB_INIT] ${label}:`, err instanceof Error ? err.message : err);
+  }
+}
+
 export async function ensureDatabaseInitialized() {
   if (isDbInitialized) return;
 
   try {
     // 1. Crear tipos ENUM de PostgreSQL si no existen
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
           CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATOR', 'VIEWER');
@@ -20,10 +28,10 @@ export async function ensureDatabaseInitialized() {
           CREATE TYPE "FlavorCategory" AS ENUM ('CAFE', 'CHOCOLATE', 'ESPECIALIDAD', 'TE');
         END IF;
       END $$;
-    `);
+    `, "Enums");
 
     // 2. Crear tabla User
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -33,10 +41,10 @@ export async function ensureDatabaseInitialized() {
         "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-    `);
+    `, "User table");
 
     // 3. Crear tabla Machine
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       CREATE TABLE IF NOT EXISTS "Machine" (
         "id" TEXT PRIMARY KEY,
         "code" TEXT UNIQUE NOT NULL,
@@ -48,10 +56,13 @@ export async function ensureDatabaseInitialized() {
         "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-    `);
+    `, "Machine table");
+
+    await safeExecute(`ALTER TABLE "Machine" ADD COLUMN IF NOT EXISTS "apiKey" TEXT;`, "Machine.apiKey");
+    await safeExecute(`ALTER TABLE "Machine" ADD COLUMN IF NOT EXISTS "lastPingAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;`, "Machine.lastPingAt");
 
     // 4. Crear tabla Flavor
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       CREATE TABLE IF NOT EXISTS "Flavor" (
         "id" TEXT PRIMARY KEY,
         "name" TEXT UNIQUE NOT NULL,
@@ -62,10 +73,12 @@ export async function ensureDatabaseInitialized() {
         "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-    `);
+    `, "Flavor table");
+
+    await safeExecute(`ALTER TABLE "Flavor" ADD COLUMN IF NOT EXISTS "costPerServing" DECIMAL(10,2) DEFAULT 0.00 NOT NULL;`, "Flavor.costPerServing");
 
     // 5. Crear tabla DispenseSlot
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       CREATE TABLE IF NOT EXISTS "DispenseSlot" (
         "id" TEXT PRIMARY KEY,
         "machineId" TEXT NOT NULL REFERENCES "Machine"("id") ON DELETE CASCADE,
@@ -82,14 +95,20 @@ export async function ensureDatabaseInitialized() {
         "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
         UNIQUE("machineId", "buttonIndex")
       );
+    `, "DispenseSlot table");
 
-      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "hopperCapacityGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;
-      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "currentStockGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;
-      ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "lastRefillAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;
-    `);
+    // Migraciones automáticas individuales e independientes para DispenseSlot
+    await safeExecute(`ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "hopperCapacityGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;`, "DispenseSlot.hopperCapacityGrams");
+    await safeExecute(`ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "currentStockGrams" DECIMAL(8,2) DEFAULT 1000.00 NOT NULL;`, "DispenseSlot.currentStockGrams");
+    await safeExecute(`ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "lastRefillAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;`, "DispenseSlot.lastRefillAt");
+    await safeExecute(`ALTER TABLE "DispenseSlot" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT true NOT NULL;`, "DispenseSlot.isActive");
+
+    // Reparar posibles valores nulos en filas ya existentes
+    await safeExecute(`UPDATE "DispenseSlot" SET "hopperCapacityGrams" = 1000.00 WHERE "hopperCapacityGrams" IS NULL;`, "DispenseSlot fix null hopperCapacityGrams");
+    await safeExecute(`UPDATE "DispenseSlot" SET "currentStockGrams" = 1000.00 WHERE "currentStockGrams" IS NULL;`, "DispenseSlot fix null currentStockGrams");
 
     // 6. Crear tabla DispenseEvent
-    await prisma.$executeRawUnsafe(`
+    await safeExecute(`
       CREATE TABLE IF NOT EXISTS "DispenseEvent" (
         "id" TEXT PRIMARY KEY,
         "machineId" TEXT NOT NULL REFERENCES "Machine"("id") ON DELETE CASCADE,
@@ -101,7 +120,7 @@ export async function ensureDatabaseInitialized() {
         "timestamp" TIMESTAMP(3) NOT NULL,
         "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-    `);
+    `, "DispenseEvent table");
 
     // 7. Auto-seed del usuario administrador inicial si la tabla está vacía
     const userCount = await prisma.user.count();
@@ -157,6 +176,5 @@ export async function ensureDatabaseInitialized() {
     isDbInitialized = true;
   } catch (err) {
     console.error("[DB_INIT_ERROR]", err);
-    // No relanzamos para no tumbar la app si ya estaban creadas
   }
 }
