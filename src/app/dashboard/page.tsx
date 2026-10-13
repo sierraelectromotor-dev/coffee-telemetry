@@ -1,11 +1,14 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureDatabaseInitialized } from "@/lib/init-db";
 import { TelemetryDashboard } from "@/components/dashboard/TelemetryDashboard";
 import { redirect } from "next/navigation";
 
 export const revalidate = 0; // Datos dinámicos en tiempo real
 
 export default async function DashboardPage() {
+  await ensureDatabaseInitialized();
+
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");

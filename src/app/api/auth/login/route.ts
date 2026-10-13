@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, setSessionCookie, hashPassword } from "@/lib/auth";
+import { ensureDatabaseInitialized } from "@/lib/init-db";
 
 const LoginSchema = z.object({
   email: z.string().email("Correo electrónico inválido"),
@@ -22,13 +23,15 @@ export async function POST(req: NextRequest) {
 
     const { email, password } = result.data;
 
+    // Asegurar que las tablas existan en PostgreSQL y se auto-cree el admin inicial
+    await ensureDatabaseInitialized();
+
     let user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    // Si la base de datos está recién inicializada y no hay usuarios, creamos el admin por defecto
-    const totalUsers = await prisma.user.count();
-    if (totalUsers === 0 && email.toLowerCase() === "admin@vendingcoffee.com") {
+    // Fallback: si aún no existe y es admin@vendingcoffee.com, crearlo
+    if (!user && email.toLowerCase() === "admin@vendingcoffee.com") {
       const defaultHash = await hashPassword("admin1234");
       user = await prisma.user.create({
         data: {
@@ -72,10 +75,14 @@ export async function POST(req: NextRequest) {
         role: user.role,
       },
     });
-  } catch (error) {
-    console.error("[AUTH_LOGIN_ERROR]", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("[AUTH_LOGIN_ERROR]", err);
     return NextResponse.json(
-      { error: "Error en el servidor al autenticar" },
+      {
+        error: "Error en el servidor al autenticar",
+        details: err?.message || String(error),
+      },
       { status: 500 }
     );
   }
