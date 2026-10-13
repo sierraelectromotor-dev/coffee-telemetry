@@ -57,6 +57,8 @@ interface DashboardProps {
   machinesList: { id: string; code: string; name: string }[];
 }
 
+import { Navbar } from "@/components/navigation/Navbar";
+
 export function TelemetryDashboard({
   user,
   metrics,
@@ -66,93 +68,61 @@ export function TelemetryDashboard({
   recentEvents,
   machinesList,
 }: DashboardProps) {
-  const router = useRouter();
   const [selectedMachine, setSelectedMachine] = useState<string>("ALL");
   const [dateRange, setDateRange] = useState<string>("today");
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  };
-
   return (
-    <div className="flex flex-col gap-6 p-6 bg-slate-950 min-h-screen text-slate-100">
-      {/* Top Navbar */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-500">
-            <Coffee className="w-7 h-7" />
-          </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <Navbar user={user} />
+      <div className="flex-1 p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        {/* Subheader con Filtros y Controles */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-lg">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              CoffeeTrack IoT
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
-                LIVE 4G
-              </span>
+              Panel de Control de Telemetría
             </h1>
-            <p className="text-xs text-slate-400">
-              Telemetría y dosificación para máquinas automáticas de café
+            <p className="text-xs text-slate-400 mt-0.5">
+              Supervisión de consumos, despachos y estado de salud de dispensadores 4G
             </p>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Selector de Máquina */}
-          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-            <Filter className="w-4 h-4 text-slate-400" />
-            <select
-              aria-label="Seleccionar máquina"
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-              className="bg-transparent font-medium text-slate-200 focus:outline-none cursor-pointer"
-            >
-              <option value="ALL" className="bg-slate-900">Todas las Máquinas</option>
-              {machinesList.map((m) => (
-                <option key={m.id} value={m.code} className="bg-slate-900">
-                  {m.code} - {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Rango de Fechas */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-            {(["today", "7d", "30d"] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setDateRange(range)}
-                className={`px-3 py-1 rounded-lg font-semibold transition-all ${
-                  dateRange === range
-                    ? "bg-amber-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Selector de Máquina */}
+            <div className="flex items-center gap-2 bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-800 text-xs">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select
+                aria-label="Seleccionar máquina"
+                value={selectedMachine}
+                onChange={(e) => setSelectedMachine(e.target.value)}
+                className="bg-transparent font-medium text-slate-200 focus:outline-none cursor-pointer"
               >
-                {range === "today" ? "Hoy" : range === "7d" ? "7 Días" : "30 Días"}
-              </button>
-            ))}
-          </div>
-
-          {/* Perfil & Logout */}
-          <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
-            <div className="text-right hidden sm:block">
-              <span className="block text-xs font-semibold text-white">
-                {user?.name || "Operador"}
-              </span>
-              <span className="block text-[10px] text-amber-400 font-mono">
-                {user?.role || "ADMIN"}
-              </span>
+                <option value="ALL" className="bg-slate-900">Todas las Máquinas</option>
+                {machinesList.map((m) => (
+                  <option key={m.id} value={m.code} className="bg-slate-900">
+                    {m.code} - {m.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <button
-              onClick={handleLogout}
-              title="Cerrar Sesión"
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 hover:text-rose-400 border border-slate-700 text-slate-300 transition-all cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+
+            {/* Rango de Fechas */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              {(["today", "7d", "30d"] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setDateRange(range)}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                    dateRange === range
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {range === "today" ? "Hoy" : range === "7d" ? "7 Días" : "30 Días"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </header>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -389,5 +359,6 @@ export function TelemetryDashboard({
         </div>
       </div>
     </div>
+  </div>
   );
 }
