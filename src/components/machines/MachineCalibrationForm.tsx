@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Coffee, Droplets, Scale, Save, CheckCircle2 } from "lucide-react";
+import { Coffee, Droplets, Scale, Save, CheckCircle2, X } from "lucide-react";
 
 export interface FlavorOption {
   id: string;
@@ -26,6 +26,7 @@ interface MachineCalibrationProps {
   initialSlots: ButtonSlotConfig[];
   availableFlavors: FlavorOption[];
   onSave: (slots: ButtonSlotConfig[]) => Promise<void>;
+  onClose?: () => void;
 }
 
 export function MachineCalibrationForm({
@@ -35,6 +36,7 @@ export function MachineCalibrationForm({
   initialSlots,
   availableFlavors,
   onSave,
+  onClose,
 }: MachineCalibrationProps) {
   const [slots, setSlots] = useState<ButtonSlotConfig[]>(() => {
     return [1, 2, 3, 4].map((index) => {
@@ -98,11 +100,23 @@ export function MachineCalibrationForm({
           </p>
         </div>
 
-        {savedSuccess && (
-          <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 text-sm font-semibold">
-            <CheckCircle2 className="w-4 h-4" /> Configuración guardada en la nube
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {savedSuccess && (
+            <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 text-sm font-semibold">
+              <CheckCircle2 className="w-4 h-4" /> Configuración guardada en la nube
+            </div>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+              title="Cerrar ventana"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Visual Mockup del Panel Frontal de la Máquina */}
@@ -296,7 +310,16 @@ export function MachineCalibrationForm({
             </div>
           ))}
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-800">
+        <div className="flex justify-end items-center gap-3 pt-6 border-t border-slate-800">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
+            >
+              Cerrar
+            </button>
+          )}
           <button
             type="submit"
             disabled={saving}

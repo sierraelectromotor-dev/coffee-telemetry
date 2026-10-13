@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Cpu,
   Plus,
@@ -42,6 +42,18 @@ export function MachinesManager({
   const [machines, setMachines] = useState<MachineItem[]>(initialMachines);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [calibratingMachine, setCalibratingMachine] = useState<MachineItem | null>(null);
+
+  // Cerrar modales con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setCalibratingMachine(null);
+        setIsCreateModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Formulario de nueva máquina
   const [newCode, setNewCode] = useState("");
@@ -293,8 +305,13 @@ export function MachinesManager({
 
       {/* Modal: Crear Nueva Máquina */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCreateModalOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative my-8">
             <button
               onClick={() => setIsCreateModalOpen(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
@@ -389,15 +406,13 @@ export function MachinesManager({
 
       {/* Modal / Vista de Calibración de la Máquina Seleccionada */}
       {calibratingMachine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto animate-fade-in">
-          <div className="w-full max-w-5xl my-8 relative">
-            <button
-              onClick={() => setCalibratingMachine(null)}
-              className="absolute -top-4 -right-4 z-10 bg-slate-800 text-slate-400 hover:text-white p-2 rounded-full border border-slate-700 shadow-xl"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-6 flex justify-center items-start animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCalibratingMachine(null);
+          }}
+        >
+          <div className="w-full max-w-5xl my-4 sm:my-8 relative">
             <MachineCalibrationForm
               machineId={calibratingMachine.id}
               machineName={calibratingMachine.name}
@@ -405,6 +420,7 @@ export function MachinesManager({
               initialSlots={calibratingMachine.dispenseSlots}
               availableFlavors={availableFlavors}
               onSave={handleSaveCalibration}
+              onClose={() => setCalibratingMachine(null)}
             />
           </div>
         </div>
